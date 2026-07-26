@@ -19,8 +19,8 @@ Glasp ("Greatest Legacy Accumulated as Shared Proof") is a free browser extensio
 | Copy-paste into Obsidian / Notion / Roam | ✅ | Via "Copy as Markdown" (no API integrations) |
 | Kindle highlights import | ✅ | Parses `My Clippings.txt` |
 | PDF highlighting | ❌ | Chrome's PDF viewer blocks content scripts; needs bundled PDF.js (roadmap) |
-| YouTube transcript highlighting / summary | ❌ | Roadmap |
-| AI summarization / "chat with highlights" | ❌ | Out of scope: requires an LLM backend |
+| YouTube transcript panel + copy + summarize | ✅ | Panel beside the player: clickable timestamps, copy (plain/timestamped), Summarize with Claude/ChatGPT via URL prefill or clipboard hand-off, save lines to library |
+| AI summarization / "chat with highlights" | ⚠️ | Hand-off only (opens Claude/ChatGPT with the prompt); no LLM API calls from the extension |
 | Social feed, profiles, follows, community highlights | ❌ | Deliberately excluded; Hilite is local-only |
 | Readwise / Notion API sync | ❌ | File export instead |
 

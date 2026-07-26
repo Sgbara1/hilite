@@ -10,6 +10,7 @@ A self-hosted, privacy-first alternative to [Glasp](https://glasp.co). Highlight
 - **Sidebar** — `Alt+G` opens a panel listing every highlight on the current page; click one to scroll to it.
 - **Library** — a full-page view of every page you've highlighted, with live search, color and tag filters.
 - **Export** — per-page or bulk, to `.md`, `.txt`, `.csv`, `.html`, and `.json`. One-click "Copy as Markdown" pastes cleanly into Obsidian, Notion, or Roam.
+- **YouTube transcripts** — on any video with captions, a panel appears next to the player with the full transcript: clickable timestamps that seek the video, **Copy transcript** (plain or timestamped), **Summarize with Claude** / **Summarize with ChatGPT** buttons that open the AI with the transcript pre-filled, and a ＋ button on each line to save it to your library.
 - **Kindle import** — drop in your `My Clippings.txt` and your book highlights join the library, grouped by book.
 - **Context menu + keyboard** — right-click → "Highlight with Hilite", `Alt+G` for the sidebar.
 - **Badge count** — the toolbar icon shows how many highlights live on the current page.
@@ -30,12 +31,15 @@ Most highlighters store an XPath or CSS path to the highlighted node, which brea
 
 ## What it deliberately doesn't do
 
-Glasp is a social product; Hilite is a personal tool. There's no feed, no profiles, no community highlights, and no AI summarization, because those require accounts and someone else's server. There's also no PDF highlighting yet: Chrome's built-in PDF viewer doesn't allow content scripts, so that needs a bundled viewer (see roadmap).
+Glasp is a social product; Hilite is a personal tool. There's no feed, no profiles, and no community highlights, because those require accounts and someone else's server. AI summarization is hand-off only: Hilite never calls an LLM API itself, it opens Claude or ChatGPT in a new tab with the transcript pre-filled (or on the clipboard for long videos), so there are no keys to manage and nothing leaves your machine until you hit enter. There's also no PDF highlighting yet: Chrome's built-in PDF viewer doesn't allow content scripts, so that needs a bundled viewer (see roadmap).
+
+### A note on the YouTube integration
+
+The transcript comes from YouTube's own caption tracks: Hilite reads `ytInitialPlayerResponse` from the watch page, picks the best caption track (manual over auto-generated, English preferred, switchable via dropdown), and fetches it in `json3` format with an XML fallback. YouTube changes these internals periodically; if the panel stops appearing, file an issue.
 
 ## Roadmap
 
 - [ ] PDF highlighting via a bundled PDF.js viewer
-- [ ] YouTube transcript capture
 - [ ] Direct Obsidian vault export (folder picker via File System Access API)
 - [ ] Firefox port (needs `browser.*` shims)
 
@@ -47,6 +51,8 @@ No build step. Vanilla JS, MV3.
 src/
   anchor.js      text-quote anchoring engine (find + wrap ranges)
   content.js     selection toolbar, marks, action menu, sidebar
+  transcript.js  YouTube caption parsing + prompt building (DOM-free)
+  youtube.js     YouTube transcript panel UI
   export.js      md / txt / csv / html formatters
   kindle.js      My Clippings.txt parser
   background.js  service worker: context menu, badge, commands

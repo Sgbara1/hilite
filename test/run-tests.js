@@ -142,4 +142,78 @@ test("booksToPages converts highlights and tags them kindle", () => {
   assert.ok(deep.highlights[0].note.includes("page 44") || deep.highlights[0].note.includes("44"));
 });
 
+// ---------- youtube transcript engine ----------
+
+const T = require("../src/transcript.js");
+
+test("extractBalancedJson pulls a nested object out of page source", () => {
+  const html = 'junk; var ytInitialPlayerResponse = {"a":{"b":"has } brace in string"},"c":[1,2]};var next=1;';
+  const raw = T.extractBalancedJson(html, "ytInitialPlayerResponse");
+  const obj = JSON.parse(raw);
+  assert.strictEqual(obj.a.b, "has } brace in string");
+  assert.deepStrictEqual(obj.c, [1, 2]);
+});
+
+test("extractBalancedJson handles escaped quotes and missing markers", () => {
+  const html = 'x = {"s":"quote \\" then } brace"} tail';
+  const obj = JSON.parse(T.extractBalancedJson(html, "x ="));
+  assert.strictEqual(obj.s, 'quote " then } brace');
+  assert.strictEqual(T.extractBalancedJson("nothing here", "marker"), null);
+});
+
+test("parseJson3 merges segs and skips empty events", () => {
+  const lines = T.parseJson3({
+    events: [
+      { tStartMs: 0, segs: [{ utf8: "Hello " }, { utf8: "world" }] },
+      { tStartMs: 500 }, // no segs (window event)
+      { tStartMs: 1200, segs: [{ utf8: "\n" }] }, // whitespace only
+      { tStartMs: 2000, segs: [{ utf8: "second line" }] }
+    ]
+  });
+  assert.deepStrictEqual(lines, [
+    { t: 0, text: "Hello world" },
+    { t: 2000, text: "second line" }
+  ]);
+});
+
+test("parseTimedtextXml decodes entities and strips tags", () => {
+  const xml = `<transcript>
+    <text start="1.5" dur="2">It&amp;#39;s &lt;i&gt;great&lt;/i&gt;</text>
+    <text start="4.25" dur="3">Second &quot;line&quot;</text>
+  </transcript>`;
+  const lines = T.parseTimedtextXml(xml);
+  assert.strictEqual(lines.length, 2);
+  assert.strictEqual(lines[0].t, 1500);
+  assert.strictEqual(lines[0].text, "It's great");
+  assert.strictEqual(lines[1].text, 'Second "line"');
+});
+
+test("formatTime renders m:ss and h:mm:ss", () => {
+  assert.strictEqual(T.formatTime(0), "0:00");
+  assert.strictEqual(T.formatTime(65000), "1:05");
+  assert.strictEqual(T.formatTime(3723000), "1:02:03");
+});
+
+test("toTimestampedText and buildSummaryPrompt include timestamps and URL", () => {
+  const lines = [{ t: 0, text: "intro" }, { t: 61000, text: "main point" }];
+  const stamped = T.toTimestampedText(lines);
+  assert.ok(stamped.includes("[0:00] intro"));
+  assert.ok(stamped.includes("[1:01] main point"));
+  const prompt = T.buildSummaryPrompt("My Video", "https://youtube.com/watch?v=x", lines);
+  assert.ok(prompt.includes("My Video"));
+  assert.ok(prompt.includes("https://youtube.com/watch?v=x"));
+  assert.ok(prompt.includes("[1:01] main point"));
+});
+
+test("pickTrack prefers manual English over ASR", () => {
+  const tracks = [
+    { languageCode: "en", kind: "asr" },
+    { languageCode: "es" },
+    { languageCode: "en" }
+  ];
+  assert.strictEqual(T.pickTrack(tracks), tracks[2]);
+  assert.strictEqual(T.pickTrack([tracks[0]]), tracks[0]);
+  assert.strictEqual(T.pickTrack([]), null);
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? " (with failures)" : ""}`);
