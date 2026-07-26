@@ -4,9 +4,24 @@
 // save-line-to-library.
 
 (() => {
+  // mode "url": the site accepts a ?q= prefill.
+  // mode "inject": no prefill support — we stash the prompt in storage and
+  // src/handoff.js fills the input box when the site opens.
   const AI_PROVIDERS = {
-    claude: { label: "Summarize with Claude", url: "https://claude.ai/new?q=" },
-    chatgpt: { label: "Summarize with ChatGPT", url: "https://chatgpt.com/?q=" }
+    claude: { label: "Claude", mode: "url", url: "https://claude.ai/new?q=" },
+    chatgpt: { label: "ChatGPT", mode: "url", url: "https://chatgpt.com/?q=" },
+    gemini: {
+      label: "Gemini",
+      mode: "inject",
+      url: "https://gemini.google.com/app",
+      hosts: ["gemini.google.com"]
+    },
+    aistudio: {
+      label: "AI Studio",
+      mode: "inject",
+      url: "https://aistudio.google.com/prompts/new_chat",
+      hosts: ["aistudio.google.com"]
+    }
   };
   // Above this, ?q= prefill URLs get unreliable; fall back to clipboard.
   const MAX_PREFILL_CHARS = 6000;
@@ -34,20 +49,6 @@
 
   // ---------- data ----------
 
-  async function fetchPlayerResponse(videoId) {
-    // The watch page server-renders ytInitialPlayerResponse; fetching it
-    // fresh avoids stale data after SPA navigations.
-    const res = await fetch(watchUrl(videoId), { credentials: "same-origin" });
-    const html = await res.text();
-    const raw = HiliteTranscript.extractBalancedJson(html, "ytInitialPlayerResponse");
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch (e) {
-      return null;
-    }
-  }
-
   function captionTracks(playerResponse) {
     try {
       return playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks || [];
@@ -56,23 +57,58 @@
     }
   }
 
-  async function fetchTranscript(track) {
-    // Try json3 first, fall back to the XML timedtext format.
+  // Primary source: the InnerTube player API with an ANDROID client identity.
+  // Caption URLs from the WEB watch page require a proof-of-origin token
+  // since ~2025 and come back empty when fetched by an extension; the
+  // Android variants don't. Falls back to parsing the watch-page HTML.
+  async function fetchCaptionTracks(videoId) {
     try {
-      const res = await fetch(track.baseUrl + "&fmt=json3", { credentials: "same-origin" });
-      const body = await res.text();
-      if (body.trim().startsWith("{")) {
-        const parsed = HiliteTranscript.parseJson3(JSON.parse(body));
-        if (parsed.length) return parsed;
-      }
+      const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+        method: "POST",
+        credentials: "omit",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: "ANDROID",
+              clientVersion: "20.10.38",
+              androidSdkVersion: 30,
+              hl: "en",
+              gl: "US"
+            }
+          },
+          videoId
+        })
+      });
+      const tracks = captionTracks(await res.json());
+      if (tracks.length) return tracks;
     } catch (e) { /* fall through */ }
+
     try {
-      const res = await fetch(track.baseUrl, { credentials: "same-origin" });
-      const xml = await res.text();
-      return HiliteTranscript.parseTimedtextXml(xml);
-    } catch (e) {
-      return [];
+      const res = await fetch(watchUrl(videoId), { credentials: "same-origin" });
+      const html = await res.text();
+      const raw = HiliteTranscript.extractBalancedJson(html, "ytInitialPlayerResponse");
+      if (raw) return captionTracks(JSON.parse(raw));
+    } catch (e) { /* fall through */ }
+    return [];
+  }
+
+  async function fetchTranscript(track) {
+    // Ask for json3 but sniff what actually comes back — YouTube may ignore
+    // the fmt override and serve srv3 or legacy XML instead.
+    const attempts = [track.baseUrl + "&fmt=json3", track.baseUrl];
+    for (const url of attempts) {
+      try {
+        const res = await fetch(url, { credentials: "omit" });
+        const body = (await res.text()).trim();
+        if (!body) continue;
+        const lines = body.startsWith("{")
+          ? HiliteTranscript.parseJson3(JSON.parse(body))
+          : HiliteTranscript.parseTimedtextXml(body);
+        if (lines.length) return lines;
+      } catch (e) { /* try next */ }
     }
+    return [];
   }
 
   // ---------- library save ----------
@@ -109,6 +145,22 @@
   async function summarizeWith(providerKey, videoId) {
     const provider = AI_PROVIDERS[providerKey];
     const prompt = HiliteTranscript.buildSummaryPrompt(videoTitle(), watchUrl(videoId), lines);
+
+    if (provider.mode === "inject") {
+      // Stash the prompt for handoff.js, keep a clipboard copy as backup.
+      await chrome.storage.local.set({
+        "hilite:pendingPrompt": {
+          text: prompt,
+          hosts: provider.hosts,
+          createdAt: Date.now()
+        }
+      });
+      await navigator.clipboard.writeText(prompt);
+      window.open(provider.url, "_blank");
+      toast(`Opening ${provider.label} — prompt will auto-fill (also copied)`);
+      return;
+    }
+
     const encoded = encodeURIComponent(prompt);
     if (encoded.length <= MAX_PREFILL_CHARS) {
       window.open(provider.url + encoded, "_blank");
@@ -186,11 +238,22 @@
           HiliteTranscript.transcriptDocument(videoTitle(), watchUrl(videoId), lines, true)
         );
         toast("Timestamped transcript copied");
-      }),
-      button(AI_PROVIDERS.claude.label, "hilite-yt-ai", () => summarizeWith("claude", videoId)),
-      button(AI_PROVIDERS.chatgpt.label, "hilite-yt-ai", () => summarizeWith("chatgpt", videoId))
+      })
     );
     panel.appendChild(actions);
+
+    const aiRow = document.createElement("div");
+    aiRow.className = "hilite-yt-actions hilite-yt-airow";
+    const aiLabel = document.createElement("span");
+    aiLabel.className = "hilite-yt-ailabel";
+    aiLabel.textContent = "✨ Summarize with:";
+    aiRow.appendChild(aiLabel);
+    for (const key of Object.keys(AI_PROVIDERS)) {
+      aiRow.appendChild(
+        button(AI_PROVIDERS[key].label, "hilite-yt-ai", () => summarizeWith(key, videoId))
+      );
+    }
+    panel.appendChild(aiRow);
 
     const list = document.createElement("div");
     list.className = "hilite-yt-lines";
@@ -280,8 +343,7 @@
     currentVideoId = videoId;
     removePanel();
 
-    const pr = await fetchPlayerResponse(videoId);
-    tracks = pr ? captionTracks(pr) : [];
+    tracks = await fetchCaptionTracks(videoId);
     if (tracks.length === 0) {
       lines = [];
       return; // no captions — stay out of the way

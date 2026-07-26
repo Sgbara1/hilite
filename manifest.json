@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Hilite — Web Highlighter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Self-hosted Glasp alternative. Highlight the web in 4 colors, add notes and tags, copy YouTube transcripts to your favorite AI, and export everything as Markdown. 100% local, no account.",
   "permissions": ["storage", "activeTab", "contextMenus", "scripting"],
   "host_permissions": ["<all_urls>"],
@@ -19,6 +19,11 @@
       "matches": ["https://www.youtube.com/*"],
       "js": ["src/transcript.js", "src/youtube.js"],
       "css": ["src/youtube.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://gemini.google.com/*", "https://aistudio.google.com/*"],
+      "js": ["src/handoff.js"],
       "run_at": "document_idle"
     }
   ],

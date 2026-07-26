@@ -10,7 +10,7 @@ A self-hosted, privacy-first alternative to [Glasp](https://glasp.co). Highlight
 - **Sidebar** — `Alt+G` opens a panel listing every highlight on the current page; click one to scroll to it.
 - **Library** — a full-page view of every page you've highlighted, with live search, color and tag filters.
 - **Export** — per-page or bulk, to `.md`, `.txt`, `.csv`, `.html`, and `.json`. One-click "Copy as Markdown" pastes cleanly into Obsidian, Notion, or Roam.
-- **YouTube transcripts** — on any video with captions, a panel appears next to the player with the full transcript: clickable timestamps that seek the video, **Copy transcript** (plain or timestamped), **Summarize with Claude** / **Summarize with ChatGPT** buttons that open the AI with the transcript pre-filled, and a ＋ button on each line to save it to your library.
+- **YouTube transcripts** — on any video with captions, a panel appears next to the player with the full transcript: clickable timestamps that seek the video, **Copy transcript** (plain or timestamped), one-click **Summarize with Claude / ChatGPT / Gemini / AI Studio** buttons that open the AI with the transcript pre-filled, and a ＋ button on each line to save it to your library.
 - **Kindle import** — drop in your `My Clippings.txt` and your book highlights join the library, grouped by book.
 - **Context menu + keyboard** — right-click → "Highlight with Hilite", `Alt+G` for the sidebar.
 - **Badge count** — the toolbar icon shows how many highlights live on the current page.
@@ -35,7 +35,18 @@ Glasp is a social product; Hilite is a personal tool. There's no feed, no profil
 
 ### A note on the YouTube integration
 
-The transcript comes from YouTube's own caption tracks: Hilite reads `ytInitialPlayerResponse` from the watch page, picks the best caption track (manual over auto-generated, English preferred, switchable via dropdown), and fetches it in `json3` format with an XML fallback. YouTube changes these internals periodically; if the panel stops appearing, file an issue.
+The transcript comes from YouTube's own caption tracks. Since ~2025, caption URLs served to the web player require a proof-of-origin token and return empty when fetched by an extension, so Hilite asks the InnerTube `player` API with an Android client identity instead — those caption URLs are token-free. It picks the best track (manual over auto-generated, English preferred, switchable via dropdown) and parses whichever format comes back (`json3`, `srv3`, or legacy timedtext XML). If YouTube closes the Android path, there's a watch-page-HTML fallback; if the panel ever stops appearing, file an issue.
+
+The four AI buttons use two different hand-off mechanisms, because the sites differ:
+
+| Provider | Mechanism |
+|---|---|
+| Claude | `claude.ai/new?q=` URL prefill (clipboard fallback for long transcripts) |
+| ChatGPT | `chatgpt.com/?q=` URL prefill (clipboard fallback for long transcripts) |
+| Gemini | No URL prefill exists, so `src/handoff.js` runs on gemini.google.com and types the prompt into the input box for you |
+| AI Studio | Same injection approach on aistudio.google.com |
+
+The hand-off never auto-submits — the prompt lands in the input box and you press enter. Every hand-off also copies the prompt to your clipboard as a backup, so if a site redesign breaks the auto-fill you can just paste.
 
 ## Roadmap
 
@@ -53,6 +64,7 @@ src/
   content.js     selection toolbar, marks, action menu, sidebar
   transcript.js  YouTube caption parsing + prompt building (DOM-free)
   youtube.js     YouTube transcript panel UI
+  handoff.js     fills the prompt box on Gemini / AI Studio (no URL prefill there)
   export.js      md / txt / csv / html formatters
   kindle.js      My Clippings.txt parser
   background.js  service worker: context menu, badge, commands

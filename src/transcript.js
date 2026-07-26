@@ -53,18 +53,32 @@ const HiliteTranscript = (() => {
       .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)));
   }
 
-  // Parse the legacy timedtext XML: <text start="1.2" dur="3.4">Hello</text>
+  function cleanXmlText(s) {
+    return decodeEntities(decodeEntities(s))
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Parse timedtext XML in both formats YouTube serves:
+  //   legacy: <text start="1.2" dur="3.4">Hello</text>   (start in seconds)
+  //   srv3:   <p t="1200" d="3400">Hello</p>             (t in milliseconds)
   function parseTimedtextXml(xml) {
     const lines = [];
-    const re = /<text[^>]*start="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+    const legacy = /<text[^>]*start="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
     let m;
-    while ((m = re.exec(xml))) {
-      const text = decodeEntities(decodeEntities(m[2]))
-        .replace(/<[^>]+>/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
+    while ((m = legacy.exec(xml))) {
+      const text = cleanXmlText(m[2]);
       if (!text) continue;
       lines.push({ t: Math.round(parseFloat(m[1]) * 1000), text });
+    }
+    if (lines.length > 0) return lines;
+
+    const srv3 = /<p[^>]*\bt="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+    while ((m = srv3.exec(xml))) {
+      const text = cleanXmlText(m[2]);
+      if (!text) continue;
+      lines.push({ t: Number(m[1]), text });
     }
     return lines;
   }

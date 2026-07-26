@@ -176,6 +176,19 @@ test("parseJson3 merges segs and skips empty events", () => {
   ]);
 });
 
+test("parseTimedtextXml handles the srv3 format (<p t= d=>)", () => {
+  const xml = `<?xml version="1.0" encoding="utf-8" ?><timedtext format="3">
+<body>
+<p t="1360" d="4000">[♪♪♪]</p>
+<p t="114960" d="3200">Never gonna <s>tell</s> a lie</p>
+<p t="120000" d="1000"></p>
+</body></timedtext>`;
+  const lines = T.parseTimedtextXml(xml);
+  assert.strictEqual(lines.length, 2);
+  assert.deepStrictEqual(lines[0], { t: 1360, text: "[♪♪♪]" });
+  assert.deepStrictEqual(lines[1], { t: 114960, text: "Never gonna tell a lie" });
+});
+
 test("parseTimedtextXml decodes entities and strips tags", () => {
   const xml = `<transcript>
     <text start="1.5" dur="2">It&amp;#39;s &lt;i&gt;great&lt;/i&gt;</text>

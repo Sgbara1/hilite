@@ -54,6 +54,8 @@
   font-weight: 600;
 }
 .hilite-yt-btn.hilite-yt-ai:hover { background: #ffd83d; }
+.hilite-yt-airow { align-items: center; }
+.hilite-yt-ailabel { color: #a8a8b3; font-size: 12px; }
 
 .hilite-yt-lines {
   max-height: 380px;
