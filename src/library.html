@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Hilite — Library</title>
+  <link rel="stylesheet" href="library.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🖍️ Hilite <span class="sub">Library</span></div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search highlights, notes, titles…" />
+    <select id="colorFilter">
+      <option value="">All colors</option>
+      <option value="yellow">🟡 Yellow</option>
+      <option value="green">🟢 Green</option>
+      <option value="blue">🔵 Blue</option>
+      <option value="pink">🩷 Pink</option>
+    </select>
+    <select id="tagFilter"><option value="">All tags</option></select>
+    <div class="spacer"></div>
+    <button id="importKindle">Import Kindle clippings</button>
+    <input type="file" id="kindleFile" accept=".txt" hidden />
+    <div class="exportGroup">
+      <span>Export all:</span>
+      <button data-export="md">.md</button>
+      <button data-export="txt">.txt</button>
+      <button data-export="csv">.csv</button>
+      <button data-export="html">.html</button>
+      <button data-export="json">.json</button>
+    </div>
+  </div>
+
+  <main id="pages"></main>
+
+  <template id="pageTpl">
+    <section class="page">
+      <div class="pageHead">
+        <div>
+          <a class="pageTitle" target="_blank" rel="noopener"></a>
+          <div class="pageMeta"></div>
+        </div>
+        <div class="pageActions">
+          <button class="copyMd" title="Copy this page's highlights as Markdown">Copy .md</button>
+          <button class="downloadMd" title="Download this page as a Markdown file">Save .md</button>
+          <button class="deletePage danger" title="Delete this page and all its highlights">Delete</button>
+        </div>
+      </div>
+      <div class="hls"></div>
+    </section>
+  </template>
+
+  <script src="export.js"></script>
+  <script src="kindle.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>

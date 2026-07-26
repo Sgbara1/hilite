@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      width: 260px;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #17171c;
+      color: #e7e7ec;
+      font-size: 13px;
+    }
+    header {
+      padding: 12px 14px;
+      font-weight: 700;
+      font-size: 15px;
+      border-bottom: 1px solid #2c2c34;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header .count { font-weight: 400; color: #a8a8b3; font-size: 12px; }
+    .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+    button {
+      all: unset;
+      box-sizing: border-box;
+      width: 100%;
+      text-align: center;
+      padding: 9px 0;
+      border-radius: 8px;
+      background: #2e2e38;
+      cursor: pointer;
+    }
+    button:hover { background: #3a3a46; }
+    button.primary { background: #f5c518; color: #17171c; font-weight: 600; }
+    button.primary:hover { background: #ffd83d; }
+    .hint { color: #808090; font-size: 11px; text-align: center; padding-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <header>Hilite <span class="count" id="count"></span></header>
+  <div class="body">
+    <button class="primary" id="toggle">Toggle sidebar</button>
+    <button id="copy">Copy page as Markdown</button>
+    <button id="library">Open library</button>
+    <div class="hint">Select text on any page to highlight · Alt+G for sidebar</div>
+  </div>
+  <script src="export.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
